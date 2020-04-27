@@ -68,6 +68,7 @@ CMasternode::CMasternode() :
     sigTime = GetAdjustedTime();
     lastPing = CMasternodePing();
     cacheInputAge = 0;
+    deposit = 0 * COIN;
     cacheInputAgeBlock = 0;
     unitTest = false;
     allowFreeTx = true;
@@ -91,6 +92,7 @@ CMasternode::CMasternode(const CMasternode& other) :
     pubKeyMasternode = other.pubKeyMasternode;
     activeState = other.activeState;
     sigTime = other.sigTime;
+    deposit = other.deposit;
     lastPing = other.lastPing;
     cacheInputAge = other.cacheInputAge;
     cacheInputAgeBlock = other.cacheInputAgeBlock;
@@ -105,6 +107,37 @@ CMasternode::CMasternode(const CMasternode& other) :
     nLastDsee = other.nLastDsee;   // temporary, do not save. Remove after migration to v12
     nLastDseep = other.nLastDseep; // temporary, do not save. Remove after migration to v12
 }
+
+// TODO : BAGGINS 
+/* 
+CMasternode::CMasternode(const CMasternodeBroadcast& mnb)
+{
+    LOCK(cs);
+    vin = mnb.vin;
+    addr = mnb.addr;
+    pubKeyCollateralAddress = mnb.pubKeyCollateralAddress;
+    pubKeyMasternode = mnb.pubKeyMasternode;
+    sig = mnb.sig;
+
+    if(IsDepositCoins(mnb.vin, deposit)) // TODO : BAGGINS 
+        activeState = MASTERNODE_ENABLED;
+    else
+    {
+        deposit = 0u;
+        activeState = MASTERNODE_REMOVE; // TODO : BAGGINS 
+    }
+
+    sigTime = mnb.sigTime;
+    lastPing = mnb.lastPing;
+    cacheInputAge = 0;
+    cacheInputAgeBlock = 0;
+    unitTest = false;
+    allowFreeTx = true;
+    protocolVersion = mnb.protocolVersion;
+    nLastDsq = mnb.nLastDsq;
+    lastTimeChecked = 0;
+}
+*/
 
 uint256 CMasternode::GetSignatureHash() const
 {
