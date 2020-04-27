@@ -551,7 +551,8 @@ bool CWallet::GetMasternodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& 
 
     // Find possible candidates (remove delegated)
     std::vector<COutput> vPossibleCoins;
-    AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_10000, false, 1, false, false);
+    //AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_10000, false, 1, false, false);
+    AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_DEPOSIT, false, 1, false, false);
 
     if (vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetMasternodeVinAndKeys -- Could not locate any valid masternode vin\n");
@@ -1306,10 +1307,9 @@ CAmount CWalletTx::GetUnlockedCredit() const
     uint256 hashTx = GetHash();
     for (unsigned int i = 0; i < vout.size(); i++) {
         const CTxOut& txout = vout[i];
-
         if (pwallet->IsSpent(hashTx, i) || pwallet->IsLockedCoin(hashTx, i)) continue;
-        if (fMasterNode && vout[i].nValue == Params().GetRequiredMasternodeCollateral(chainActive.Height()) * COIN) continue; // do not count MN-like outputs
-
+        //if (fMasterNode && vout[i].nValue == Params().GetRequiredMasternodeCollateral(chainActive.Height()) * COIN) continue; // do not count MN-like outputs
+        if (fMasterNode && CMasternode::IsDepositCoins(pcoin->vout[i].nValue)) continue;
         nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
         if (!MoneyRange(nCredit))
             throw std::runtime_error("CWalletTx::GetUnlockedCredit() : value out of range");
@@ -1342,7 +1342,8 @@ CAmount CWalletTx::GetLockedCredit() const
         }
 
         // Add masternode collaterals which are handled likc locked coins
-        else if (fMasterNode && vout[i].nValue == Params().GetRequiredMasternodeCollateral(chainActive.Height()) * COIN) {
+        //else if (fMasterNode && vout[i].nValue == Params().GetRequiredMasternodeCollateral(chainActive.Height()) * COIN) {
+        else if (fMasterNode && CMasternode::IsDepositCoins(pcoin->vout[i].nValue)) {        
             nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
         }
 
@@ -1417,7 +1418,8 @@ CAmount CWalletTx::GetLockedWatchOnlyCredit() const
         }
 
         // Add masternode collaterals which are handled likc locked coins
-        else if (fMasterNode && vout[i].nValue == Params().GetRequiredMasternodeCollateral(chainActive.Height()) * COIN) {
+        //else if (fMasterNode && vout[i].nValue == Params().GetRequiredMasternodeCollateral(chainActive.Height()) * COIN) {
+        else if (fMasterNode && CMasternode::IsDepositCoins(pcoin->vout[i].nValue)) { 
             nCredit += pwallet->GetCredit(txout, ISMINE_WATCH_ONLY);
         }
 
@@ -1994,6 +1996,7 @@ void CWallet::AvailableCoins(
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 bool found = false;
+                /*
                 if (nCoinType == ONLY_DENOMINATED) {
                     found = IsDenominatedAmount(pcoin->vout[i].nValue);
                 } else if (nCoinType == ONLY_NOT10000IFMN) {
@@ -2005,6 +2008,18 @@ void CWallet::AvailableCoins(
                 } else if (nCoinType == ONLY_10000) {
                     found = pcoin->vout[i].nValue == Params().GetRequiredMasternodeCollateral(chainActive.Height()) * COIN;
                 } else {
+                */
+                if (nCoinType == ONLY_DENOMINATED) {
+                    found = IsDenominatedAmount(pcoin->vout[i].nValue);
+                } else if (nCoinType == ONLY_NOTDEPOSITIFMN) {
+                    found = !(fMasterNode && CMasternode::IsDepositCoins(pcoin->vout[i].nValue));
+                } else if (nCoinType == ONLY_NONDENOMINATED_NOTDEPOSITIFMN) {
+                    if (IsCollateralAmount(pcoin->vout[i].nValue)) continue; // do not use collateral amounts
+                    found = !IsDenominatedAmount(pcoin->vout[i].nValue);
+                    if (found && fMasterNode) found = !CMasternode::IsDepositCoins(pcoin->vout[i].nValue); // do not use Hot MN funds
+                } else if (nCoinType == ONLY_DEPOSIT) {
+                    found = CMasternode::IsDepositCoins(pcoin->vout[i].nValue);
+                } else {                        
                     found = true;
                 }
                 if (!found) continue;
@@ -2026,7 +2041,8 @@ void CWallet::AvailableCoins(
                 if (mine == ISMINE_WATCH_ONLY && nWatchonlyConfig == 1)
                     continue;
 
-                if (IsLockedCoin((*it).first, i) && nCoinType != ONLY_10000)
+                //if (IsLockedCoin((*it).first, i) && nCoinType != ONLY_10000)
+                if (IsLockedCoin((*it).first, i) && nCoinType != ONLY_DEPOSIT)
                     continue;
                 if (pcoin->vout[i].nValue <= 0 && !fIncludeZeroValue)
                     continue;
