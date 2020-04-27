@@ -1044,10 +1044,17 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         // make sure it's still unspent
         //  - this is checked later by .check() in many places and by ThreadCheckObfuScationPool()
-
+        
+        if(!CMasternode::IsDepositCoins(vin, deposit)) {
+            state.Invalid(false, 0, "MN input checking tx: invalid vin amount");
+            return state;
+        }
+        
+        CAmount          deposit;
         CValidationState state;
         CMutableTransaction tx = CMutableTransaction();
-        CTxOut vout = CTxOut((Params().GetRequiredMasternodeCollateral(chainActive.Height()) - 0.01) * COIN, obfuScationPool.collateralPubKey);
+        //CTxOut vout = CTxOut((Params().GetRequiredMasternodeCollateral(chainActive.Height()) - 0.01) * COIN, obfuScationPool.collateralPubKey);
+        CTxOut vout = CTxOut(deposit - 0.01 * COIN, obfuScationPool.collateralPubKey);
         tx.vin.push_back(vin);
         tx.vout.push_back(vout);
 
