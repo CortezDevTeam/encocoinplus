@@ -23,7 +23,7 @@
 #include "kernel.h"
 #include "masternode-budget.h"
 #include "masternode-payments.h"
-#include "masternodeman.h"
+#include "masternodeman.h" 
 #include "merkleblock.h"
 #include "messagesigner.h"
 #include "net.h"
@@ -2028,7 +2028,7 @@ int64_t GetBlockValue(int nHeight)
 }
 
 
-int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCount, bool isZEPGStake)
+int64_t GetMasternodePayment(int nHeight, int64_t blockValue, unsigned mnlevel, int nMasternodeCount, bool isZEPGStake)
 {
     int64_t ret = 0;
 
@@ -2046,10 +2046,17 @@ int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCou
     else if (nHeight < 46032) {
         ret = blockValue * 848 / 1000;
     } 
+    else if (nHeight < 150000) {
+        switch(mnlevel) {
+            case 1: return blockValue * 0.3;
+            case 2: return blockValue * 0.7;
+            //case 3: return blockValue * 0.3;
+            //case 4: return blockValue * 0.02;
+        }
+    }    
     else {
         ret =  1 * COIN;;
-    }
-
+    }    
     return ret;
 }
 
