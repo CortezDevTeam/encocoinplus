@@ -268,7 +268,9 @@ int64_t CMasternode::GetLastPaid()
 
     const CBlockIndex* BlockReading = chainActive.Tip();
 
-    int nMnCount = mnodeman.CountEnabled() * 1.25;
+    //int nMnCount = mnodeman.CountEnabled() * 1.25;
+    int nMnCount = 0;
+    nMnCount = int(mnodeman.CountEnabled(Level()) * 1.25); // new
     int n = 0;
     for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
         if (n >= nMnCount) {
@@ -318,6 +320,55 @@ std::string CMasternode::GetStatus()
     default:
         return "UNKNOWN";
     }
+}
+
+
+unsigned CMasternode::Level(CAmount vin_val, int blockHeight)
+{
+    if (blockHeight >= 0 ) {
+      switch(vin_val) {
+          case 5000 * COIN: return 1;
+          case 25000 * COIN: return 2;
+          //case 50000 * COIN: return 3;
+          //case 250000 * COIN: return 4;
+      }
+    }
+    return 0;
+}
+
+unsigned CMasternode::Level(const CTxIn& vin, int blockHeight)
+{
+    CAmount vin_val;
+
+    if(!IsDepositCoins(vin, vin_val))
+        return LevelValue::UNSPECIFIED;
+
+    return Level(vin_val, blockHeight);
+}
+
+bool CMasternode::IsDepositCoins(CAmount vin_val)
+{
+    return Level(vin_val, chainActive.Height());
+}
+
+bool CMasternode::IsDepositCoins(const CTxIn& vin, CAmount& vin_val)
+{
+    CTransaction prevout_tx;
+    uint256      hashBlock = 0;
+
+    bool vin_valid =  GetTransaction(vin.prevout.hash, prevout_tx, hashBlock, true)
+                   && (vin.prevout.n < prevout_tx.vout.size());
+
+    if(!vin_valid)
+        return false;
+
+    CAmount vin_amount = prevout_tx.vout[vin.prevout.n].nValue;
+
+    if(!IsDepositCoins(vin_amount))
+        return false;
+
+    vin_val = vin_amount;
+    return true;
 }
 
 bool CMasternode::IsValidNetAddr()

@@ -412,6 +412,31 @@ int CMasternodeMan::CountEnabled(unsigned mnlevel, int protocolVersion)
     return i;
 }
 
+std::map<unsigned, unsigned> CMasternodeMan::CountEnabledByLevels(int protocolVersion)
+{
+    if(protocolVersion == -1)
+        protocolVersion = masternodePayments.GetMinMasternodePaymentsProto();
+
+    std::map<unsigned, unsigned> result;
+
+    for(unsigned l = CMasternode::LevelValue::MIN; l <= CMasternode::LevelValue::MAX; ++l)
+        result.emplace(l, 0u);
+
+    for(auto& mn : vMasternodes)
+    {
+        mn.Check();
+
+        bool enabled = mn.protocolVersion >= protocolVersion && mn.IsEnabled();
+
+        if(!enabled)
+            continue;
+
+        ++result[mn.Level()];
+    };
+
+    return result;
+}
+
 void CMasternodeMan::CountNetworks(int protocolVersion, int& ipv4, int& ipv6, int& onion)
 {
     protocolVersion = protocolVersion == -1 ? masternodePayments.GetMinMasternodePaymentsProto() : protocolVersion;

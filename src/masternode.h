@@ -127,12 +127,20 @@ public:
         MASTERNODE_MISSING
     };
 
+    enum LevelValue : unsigned {
+        UNSPECIFIED = 0u,
+        MIN = 1u,
+//        MAX = 3u,
+        MAX = 2u,
+    };    
+
     CTxIn vin;
     CService addr;
     CPubKey pubKeyCollateralAddress;
     CPubKey pubKeyMasternode;
     CPubKey pubKeyCollateralAddress1;
     CPubKey pubKeyMasternode1;
+    CAmount deposit;
     int activeState;
     int64_t sigTime; //mnb message time
     int cacheInputAge;
@@ -148,6 +156,12 @@ public:
 
     int64_t nLastDsee;  // temporary, do not save. Remove after migration to v12
     int64_t nLastDseep; // temporary, do not save. Remove after migration to v12
+
+    static unsigned Level(CAmount vin_val, int blockHeight);
+    static unsigned Level(const CTxIn& vin, int blockHeight);
+
+    static bool IsDepositCoins(CAmount);
+    static bool IsDepositCoins(const CTxIn& vin, CAmount& vin_val);
 
     CMasternode();
     CMasternode(const CMasternode& other);
@@ -173,6 +187,7 @@ public:
         swap(first.pubKeyMasternode, second.pubKeyMasternode);
         swap(first.activeState, second.activeState);
         swap(first.sigTime, second.sigTime);
+        swap(first.deposit, second.deposit);
         swap(first.lastPing, second.lastPing);
         swap(first.cacheInputAge, second.cacheInputAge);
         swap(first.cacheInputAgeBlock, second.cacheInputAgeBlock);
@@ -212,6 +227,7 @@ public:
         READWRITE(pubKeyCollateralAddress);
         READWRITE(pubKeyMasternode);
         READWRITE(vchSig);
+        READWRITE(deposit);
         READWRITE(sigTime);
         READWRITE(protocolVersion);
         READWRITE(activeState);
@@ -289,6 +305,11 @@ public:
         return strStatus;
     }
 
+    unsigned Level()
+    {
+        return Level(deposit, chainActive.Height());
+    }
+        
     int64_t GetLastPaid();
     bool IsValidNetAddr();
 
