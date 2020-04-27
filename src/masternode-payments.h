@@ -60,6 +60,7 @@ class CMasternodePayee
 {
 public:
     CScript scriptPubKey;
+    unsigned mnlevel;
     int nVotes;
 
     CMasternodePayee()
@@ -68,9 +69,10 @@ public:
         nVotes = 0;
     }
 
-    CMasternodePayee(CScript payee, int nVotesIn)
+    CMasternodePayee(unsigned mnlevelIn, CScript payee, int nVotesIn)
     {
         scriptPubKey = payee;
+        mnlevel = mnlevelIn;
         nVotes = nVotesIn;
     }
 
@@ -81,6 +83,7 @@ public:
     {
         READWRITE(scriptPubKey);
         READWRITE(nVotes);
+        READWRITE(mnlevel);
     }
 };
 
@@ -102,7 +105,7 @@ public:
         vecPayments.clear();
     }
 
-    void AddPayee(CScript payeeIn, int nIncrement)
+    void AddPayee(CScript payeeIn, unsigned mnlevel, int nIncrement)
     {
         LOCK(cs_vecPayments);
 
@@ -113,16 +116,21 @@ public:
             }
         }
 
-        CMasternodePayee c(payeeIn, nIncrement);
+        CMasternodePayee c(payeeIn, nIncrement, mnlevel,);
         vecPayments.push_back(c);
     }
 
-    bool GetPayee(CScript& payee)
+    bool GetPayee(CScript& payee, unsigned mnlevel,)
     {
         LOCK(cs_vecPayments);
 
         int nVotes = -1;
         for (CMasternodePayee& p : vecPayments) {
+
+            if(p.mnlevel != mnlevel){
+                continue;
+            }
+
             if (p.nVotes > nVotes) {
                 payee = p.scriptPubKey;
                 nVotes = p.nVotes;
@@ -257,16 +265,16 @@ public:
     void CleanPaymentList();
     int LastPayment(CMasternode& mn);
 
-    bool GetBlockPayee(int nBlockHeight, CScript& payee);
+    bool GetBlockPayee(int nBlockHeight, unsigned mnlevel, CScript& payee);
     bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight);
     bool IsScheduled(CMasternode& mn, int nNotBlockHeight);
 
-    bool CanVote(COutPoint outMasternode, int nBlockHeight)
+    bool CanVote(COutPoint outMasternode, int nBlockHeight, unsigned mnlevel)
     {
         LOCK(cs_mapMasternodePayeeVotes);
 
-        if (mapMasternodesLastVote.count(outMasternode.hash + outMasternode.n)) {
-            if (mapMasternodesLastVote[outMasternode.hash + outMasternode.n] == nBlockHeight) {
+        if (mapMasternodesLastVote.count((outMasternode.hash + outMasternode.n) << 4) + mnlevel) {
+            if (mapMasternodesLastVote[((outMasternode.hash + outMasternode.n) << 4) + mnlevel] == nBlockHeight) {
                 return false;
             }
         }
