@@ -348,16 +348,34 @@ void CMasternodeMan::Clear()
     nDsqCount = 0;
 }
 
-int CMasternodeMan::stable_size ()
+int CMasternodeMan::size(unsigned mnlevel)
+{
+    auto check_level = mnlevel != CMasternode::LevelValue::UNSPECIFIED;
+
+    return std::count_if(vMasternodes.begin(), vMasternodes.end(), [=](CMasternode& mn){
+
+        if(check_level && mnlevel != mn.Level())
+            return false;
+
+        return true;
+    });
+}
+
+int CMasternodeMan::stable_size (unsigned mnlevel)
 {
     int nStable_size = 0;
     int nMinProtocol = ActiveProtocol();
     int64_t nMasternode_Min_Age = MN_WINNER_MINIMUM_AGE;
     int64_t nMasternode_Age = 0;
 
+    auto check_level = mnlevel != CMasternode::LevelValue::UNSPECIFIED;
+
     for (CMasternode& mn : vMasternodes) {
         if (mn.protocolVersion < nMinProtocol) {
             continue; // Skip obsolete versions
+        }
+        if(check_level && mnlevel != mn.Level()) {
+            return false;
         }
         if (sporkManager.IsSporkActive (SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)) {
             nMasternode_Age = GetAdjustedTime() - mn.sigTime;
@@ -375,13 +393,18 @@ int CMasternodeMan::stable_size ()
     return nStable_size;
 }
 
-int CMasternodeMan::CountEnabled(int protocolVersion)
+int CMasternodeMan::CountEnabled(unsigned mnlevel, int protocolVersion)
 {
     int i = 0;
     protocolVersion = protocolVersion == -1 ? masternodePayments.GetMinMasternodePaymentsProto() : protocolVersion;
 
+    auto check_level = mnlevel != CMasternode::LevelValue::UNSPECIFIED;
+    
     for (CMasternode& mn : vMasternodes) {
         mn.Check();
+        if(check_level && mnlevel != mn.Level()) {
+            return false;
+        }
         if (mn.protocolVersion < protocolVersion || !mn.IsEnabled()) continue;
         i++;
     }
@@ -474,7 +497,7 @@ CMasternode* CMasternodeMan::Find(const CPubKey& pubKeyMasternode)
 //
 // Deterministically select the oldest/best masternode to pay on the network
 //
-CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount)
+CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, unsigned mnlevel, bool fFilterSigTime, int& nCount)
 {
     LOCK(cs);
 
@@ -484,10 +507,14 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     /*
         Make a vector with all of the last paid times
     */
-
-    int nMnCount = CountEnabled();
+    int nMnCount = CountEnabled(mnlevel);
+//    int nMnCount = CountEnabled();
     for (CMasternode& mn : vMasternodes) {
         mn.Check();
+
+        if(mn.Level() != mnlevel)
+            continue;
+
         if (!mn.IsEnabled()) continue;
 
         // //check protocol version
@@ -508,8 +535,8 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     nCount = (int)vecMasternodeLastPaid.size();
 
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
-    if (fFilterSigTime && nCount < nMnCount / 3) return GetNextMasternodeInQueueForPayment(nBlockHeight, false, nCount);
-
+    if (fFilterSigTime && nCount < nMnCount / 3)
+        return GetNextMasternodeInQueueForPayment(nBlockHeight, mnlevel, false, nCount);
     // Sort them high to low
     sort(vecMasternodeLastPaid.rbegin(), vecMasternodeLastPaid.rend(), CompareLastPaid());
 
@@ -535,13 +562,13 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     return pBestMasternode;
 }
 
-CMasternode* CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn>& vecToExclude, int protocolVersion)
+CMasternode* CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn>& vecToExclude, unsigned mnlevel, int protocolVersion)
 {
     LOCK(cs);
 
     protocolVersion = protocolVersion == -1 ? masternodePayments.GetMinMasternodePaymentsProto() : protocolVersion;
 
-    int nCountEnabled = CountEnabled(protocolVersion);
+    int nCountEnabled = CountEnabled(mnlevel, protocolVersion);
     LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec - nCountEnabled - vecToExclude.size() %d\n", nCountEnabled - vecToExclude.size());
     if (nCountEnabled - vecToExclude.size() < 1) return NULL;
 
@@ -550,6 +577,10 @@ CMasternode* CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn>& vecToExclude
     bool found;
 
     for (CMasternode& mn : vMasternodes) {
+
+        if(mnlevel != CMasternode::LevelValue::UNSPECIFIED && mn.Level() != mnlevel)
+            continue;
+
         if (mn.protocolVersion < protocolVersion || !mn.IsEnabled()) continue;
         found = false;
         for (CTxIn& usedVin : vecToExclude) {
@@ -567,14 +598,19 @@ CMasternode* CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn>& vecToExclude
     return NULL;
 }
 
-CMasternode* CMasternodeMan::GetCurrentMasterNode(int mod, int64_t nBlockHeight, int minProtocol)
+CMasternode* CMasternodeMan::GetCurrentMasterNode(unsigned mnlevel, int mod, int64_t nBlockHeight, int minProtocol)
 {
     int64_t score = 0;
     CMasternode* winner = NULL;
 
+    auto check_mnlevel = mnlevel != CMasternode::LevelValue::UNSPECIFIED;
+
     // scan for winner
     for (CMasternode& mn : vMasternodes) {
         mn.Check();
+        if(check_mnlevel && mn.Level() != mnlevel)
+            continue;
+        
         if (mn.protocolVersion < minProtocol || !mn.IsEnabled()) continue;
 
         // calculate the score for each Masternode
