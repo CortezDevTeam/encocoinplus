@@ -116,11 +116,11 @@ public:
             }
         }
 
-        CMasternodePayee c(payeeIn, nIncrement, mnlevel,);
+        CMasternodePayee c(mnlevel, payeeIn, nIncrement);
         vecPayments.push_back(c);
     }
 
-    bool GetPayee(CScript& payee, unsigned mnlevel,)
+    bool GetPayee(CScript& payee, unsigned mnlevel)
     {
         LOCK(cs_vecPayments);
 
@@ -171,19 +171,23 @@ public:
     CTxIn vinMasternode;
     int nBlockHeight;
     CScript payee;
+    unsigned payeeLevel;
 
     CMasternodePaymentWinner() :
         CSignedMessage(),
         vinMasternode(),
         nBlockHeight(0),
-        payee()
+        payee(),
+        payeeLevel(CMasternode::LevelValue::UNSPECIFIED)
+
     {}
 
     CMasternodePaymentWinner(CTxIn vinIn) :
         CSignedMessage(),
         vinMasternode(vinIn),
         nBlockHeight(0),
-        payee()
+        payee(),
+        payeeLevel(CMasternode::LevelValue::UNSPECIFIED)
     {}
 
     uint256 GetHash() const;
@@ -196,9 +200,10 @@ public:
     bool IsValid(CNode* pnode, std::string& strError);
     void Relay();
 
-    void AddPayee(CScript payeeIn)
+    void AddPayee(CScript payeeIn, unsigned payeeLevelIn)
     {
         payee = payeeIn;
+        payeeLevel = payeeLevelIn;
     }
 
     ADD_SERIALIZE_METHODS;
@@ -223,7 +228,8 @@ public:
         std::string ret = "";
         ret += vinMasternode.ToString();
         ret += ", " + std::to_string(nBlockHeight);
-        ret += ", " + payee.ToString();
+        //ret += ", " + payee.ToString();
+        ret += ", " + std::to_string(payeeLevel) + ":" + payee.ToString();
         ret += ", " + std::to_string((int)vchSig.size());
         return ret;
     }
@@ -267,22 +273,9 @@ public:
 
     bool GetBlockPayee(int nBlockHeight, unsigned mnlevel, CScript& payee);
     bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight);
-    bool IsScheduled(CMasternode& mn, int nNotBlockHeight);
+    bool IsScheduled(CMasternode& mn, int nNotBlockHeight, unsigned mnlevel);
 
-    bool CanVote(COutPoint outMasternode, int nBlockHeight, unsigned mnlevel)
-    {
-        LOCK(cs_mapMasternodePayeeVotes);
-
-        if (mapMasternodesLastVote.count((outMasternode.hash + outMasternode.n) << 4) + mnlevel) {
-            if (mapMasternodesLastVote[((outMasternode.hash + outMasternode.n) << 4) + mnlevel] == nBlockHeight) {
-                return false;
-            }
-        }
-
-        //record this masternode voted
-        mapMasternodesLastVote[outMasternode.hash + outMasternode.n] = nBlockHeight;
-        return true;
-    }
+    bool CanVote(const COutPoint outMasternode, int nBlockHeight, unsigned mnlevel);
 
     int GetMinMasternodePaymentsProto();
     void ProcessMessageMasternodePayments(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);

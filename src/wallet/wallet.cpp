@@ -1276,7 +1276,7 @@ CAmount CWalletTx::GetStakeDelegationCredit(bool fUseCache) const
     return GetUnspentCredit(ISMINE_SPENDABLE_DELEGATED);
 }
 
-CAmount CWalletTx::UpdateAmount(CAmount& amountToUpdate, bool& cacheFlagToUpdate, bool fUseCache, isminetype mimeType, bool fCredit) const
+CAmount CWalletTx::UpdateAmount(CAmount& amountToUpdate, bool& cacheFlagToUpdate, AvailableCoinsType nCoinType, bool fUseCache, isminetype mimeType, bool fCredit) const
 {
     if (pwallet == 0)
         return 0;
@@ -2507,9 +2507,9 @@ bool CWallet::CreateTransaction(const std::vector<std::pair<CScript, CAmount> >&
                 if (!SelectCoins(nTotalValue, setCoins, nValueIn, coinControl, coin_type, useIX, false, fIncludeDelegated)) {
                     if (coin_type == ALL_COINS) {
                         strFailReason = _("Insufficient funds.");
-                    } else if (coin_type == ONLY_NOT10000IFMN) {
+                    } else if (coin_type == ONLY_NOTDEPOSITIFMN) {
                         strFailReason = _("Unable to locate enough funds for this transaction that are not equal 550 EPG.");
-                    } else if (coin_type == ONLY_NONDENOMINATED_NOT10000IFMN) {
+                    } else if (coin_type == ONLY_NONDENOMINATED_NOTDEPOSITIFMN) {
                         strFailReason = _("Unable to locate enough Obfuscation non-denominated funds for this transaction that are not equal 550 EPG.");
                     } else {
                         strFailReason = _("Unable to locate enough Obfuscation denominated funds for this transaction.");

@@ -243,7 +243,6 @@ void CMasternode::Check(bool forceCheck)
     }
 
     if (!unitTest) {
-        CAmount deposit
         CValidationState state;
         CMutableTransaction tx = CMutableTransaction();
         //CTxOut vout = CTxOut((Params().GetRequiredMasternodeCollateral(chainActive.Height()) - 0.01) * COIN, obfuScationPool.collateralPubKey);

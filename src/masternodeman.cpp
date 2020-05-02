@@ -546,7 +546,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
         if (mn.protocolVersion < masternodePayments.GetMinMasternodePaymentsProto()) continue;
 
         //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-        if (masternodePayments.IsScheduled(mn, nBlockHeight)) continue;
+        if (masternodePayments.IsScheduled(mn, nBlockHeight, mnlevel)) continue;
 
         //it's too new, wait for a cycle
         if (fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()) continue;
@@ -1044,13 +1044,13 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         // make sure it's still unspent
         //  - this is checked later by .check() in many places and by ThreadCheckObfuScationPool()
+        CAmount          deposit;
         
         if(!CMasternode::IsDepositCoins(vin, deposit)) {
-            state.Invalid(false, 0, "MN input checking tx: invalid vin amount");
-            return state;
+            //LogPrintf(false, 0, "MN input checking tx: invalid vin amount");
+            return;
         }
         
-        CAmount          deposit;
         CValidationState state;
         CMutableTransaction tx = CMutableTransaction();
         //CTxOut vout = CTxOut((Params().GetRequiredMasternodeCollateral(chainActive.Height()) - 0.01) * COIN, obfuScationPool.collateralPubKey);

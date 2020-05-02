@@ -145,7 +145,7 @@ public:
 
     /// Return the number of (unique) Masternodes
     int size() { return vMasternodes.size(); }
-    int size(unsigned mnlevel)
+    int size(unsigned mnlevel);
     
     /// Return the number of Masternodes older than (default) 8000 seconds
     int stable_size(unsigned mnlevel = CMasternode::LevelValue::UNSPECIFIED);
